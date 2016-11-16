@@ -1,3 +1,4 @@
+/* eslint-disable */
 import expect from 'expect';
 
 describe('MyFirstTest', () => {
