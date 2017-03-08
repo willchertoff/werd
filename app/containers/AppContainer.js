@@ -1,21 +1,15 @@
-import React, { Component } from 'react';
-import { withRouter } from 'react-router';
-import { connect } from 'react-redux';
-import App from '../components/App';
+import React, { PropTypes } from 'react';
 
-class AppContainer extends Component {
-  render() {
-    return (
-      <App {...this.props} />
-    );
-  }
-}
+const pt = {
+  children: PropTypes.element.isRequired,
+};
 
-function mapStateToProps(state) {
-  const { message } = state;
-  return {
-    message,
-  };
-}
+const AppContainer = ({ children }) => (
+  <div>
+    {children}
+  </div>
+);
 
-export default withRouter(connect(mapStateToProps)(AppContainer));
+AppContainer.propTypes = pt;
+
+export default AppContainer;

@@ -1,22 +1,30 @@
+/* eslint-disable no-undef, no-underscore-dangle */
+
 import 'babel-polyfill';
-import 'isomorphic-fetch';
 
-import { Router, Route, browserHistory } from 'react-router';
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { render } from 'react-dom';
+
 import { Provider } from 'react-redux';
+import { Router, browserHistory } from 'react-router';
+import { syncHistoryWithStore } from 'react-router-redux';
 
-import '../public/styles/main.scss';
-import AppContainer from './containers/AppContainer';
-import configureStore from './store/configureStore';
+import { configureStore, DevTools } from './store';
+import routes from './routes';
 
-const store = configureStore();
+const store = configureStore(browserHistory, window.__initialState__);
+const history = syncHistoryWithStore(browserHistory, store);
 
-ReactDOM.render(
-  <Provider store={store} >
-    <Router history={browserHistory} >
-      <Route path="/" component={AppContainer} />
-    </Router>
+render(
+  <Provider store={store}>
+    <Router history={history} routes={routes} />
   </Provider>,
-  document.getElementById('main') // eslint-disable-line
+  document.getElementById('root')
+);
+
+render(
+  <Provider store={store} >
+    <DevTools />
+  </Provider>,
+  document.getElementById('devtools')
 );

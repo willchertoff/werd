@@ -1,27 +1,68 @@
-/* eslint-disable no-console */
-import express from 'express';
-import path from 'path';
-import httpProxy from 'http-proxy';
-import bundle from './server/bundle';
+/* eslint-disable no-console, react/no-danger */
 
-const proxy = httpProxy.createProxyServer();
+import express from 'express';
+import serialize from 'serialize-javascript';
+import webpack from 'webpack';
+import webpackDevMiddleware from 'webpack-dev-middleware';
+import React, { PropTypes } from 'react';
+import { renderToString } from 'react-dom/server';
+import { Provider } from 'react-redux';
+import { createMemoryHistory, match, RouterContext } from 'react-router';
+import { syncHistoryWithStore } from 'react-router-redux';
+import { configureStore } from './app/store';
+import routes from './app/routes';
+import webpackConfig from './webpack.config.babel.js';
+
 const app = express();
 
-const isProduction = process.env.NODE_ENV === 'production';
-const port = isProduction ? process.env.PORT : 5002;
-const publicPath = path.resolve(__dirname, 'public');
+app.use(webpackDevMiddleware(webpack(webpackConfig), {
+  publicPath: '/__build__/',
+  stats: {
+    colors: true,
+  },
+}));
 
-app.use(express.static(publicPath));
+const pt = {
+  content: PropTypes.string,
+  store: PropTypes.object,
+};
+const HTML = ({ content, store }) => (
+  <html
+    lang="en"
+  >
+    <body>
+      <div id="root" dangerouslySetInnerHTML={{ __html: content }} />
+      <div id="devtools" />
+      <script dangerouslySetInnerHTML={{ __html: `window.__initialState__=${serialize(store.getState())};` }} />
+      <script src="/__build__/bundle.js" />
+    </body>
+  </html>
+);
 
-if (!isProduction) {
-  bundle();
+HTML.propTypes = pt;
 
-  app.all('/build/*', (req, res) => {
-    proxy.web(req, res, {
-      target: 'http://localhost:8080',
-    });
+app.use((req, res) => {
+  const memoryHistory = createMemoryHistory(req.url);
+  const store = configureStore(memoryHistory);
+  const history = syncHistoryWithStore(memoryHistory, store);
+
+  match({ history, routes, location: req.url }, (error, redirectLocation, renderProps) => {
+    if (error) {
+      res.status(500).send(error.message);
+    } else if (redirectLocation) {
+      res.redirect(302, redirectLocation.pathname + redirectLocation.search);
+    } else if (renderProps) {
+      const content = renderToString(
+        <Provider store={store}>
+          <RouterContext {...renderProps} />
+        </Provider>
+      );
+
+      res.send(`<!doctype html>\n ${renderToString(<HTML content={content} store={store} />)}`);
+    }
   });
-}
+});
 
-proxy.on('error', e => console.log(`Could not connect to proxy, here is the error ${e}`));
-app.listen(port, () => console.log(`WERD is running on ${port}`));
+app.listen(8080, () => {
+  console.log('Server listening on http://localhost:8080, Ctrl+C to stop');
+});
